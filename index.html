@@ -810,15 +810,22 @@ function placeVis(g,sp){
   var fw=vw/(g.bb[2]-g.bb[0]),fh=fw*g.ar;
   return {x:vx-g.bb[0]*fw,y:vy-g.bb[1]*fh,w:fw,h:fh};
 }
-function figMode(){return S.figMode==="flat"?"flat":"body"}
+function figMode(){return "flat"}
 function figLayout(ids,mode){
   mode=mode||figMode();
   var its=(ids||[]).map(byId).filter(function(i){return i&&!i.gone});
   its.sort(function(a,b){return CAT_ORDER.indexOf(a.cat)-CAT_ORDER.indexOf(b.cat)});
   var out=[];
   if(mode==="flat"){
-    var n=its.length,cols=n<=1?1:2,rows=Math.ceil(n/cols),gap=12,W=300-24,H=400-24,bw=(W-gap*(cols-1))/cols,bh=(H-gap*(rows-1))/rows;
-    var bw2;its.forEach(function(i,k){var c=k%cols,r=Math.floor(k/cols);if(n%2===1&&k===n-1&&cols===2){c=0;bw2=W}else bw2=bw;var b=[12+c*(bw+gap),12+r*(bh+gap),bw2,bh];var g=geo(i);var p=placeVis(g,{t:"box",box:[b[0]+6,b[1]+6,b[2]-12,b[3]-12]});p.z=2;p.r=0;out.push({i:i,p:p})});
+    var BIG=["outer","dress","top","sport","swim","bottom"],big=its.filter(function(i){return BIG.indexOf(i.cat)>=0}),small=its.filter(function(i){return BIG.indexOf(i.cat)<0});
+    if(!big.length){big=small;small=[]}
+    var M=12,G=10,W=300-2*M,smallH=small.length?(big.length>2?92:110):0,topH=400-2*M-(small.length?smallH+G:0);
+    function tilt(id){var h=0;for(var q=0;q<id.length;q++)h=(h*31+id.charCodeAt(q))%997;return (h%7)-3}
+    function put(i,bx){var p=placeVis(geo(i),{t:"box",box:[bx[0]+6,bx[1]+6,bx[2]-12,bx[3]-12]});p.z=2;p.r=tilt(i.id);out.push({i:i,p:p})}
+    if(big.length===1)put(big[0],[M,M,W,topH]);
+    else{var cw=(W-G)/2,L=big.filter(function(_,k){return k%2===0}),R=big.filter(function(_,k){return k%2===1});
+      [L,R].forEach(function(col,ci){var h=(topH-G*(col.length-1))/col.length;col.forEach(function(i,k){put(i,[M+ci*(cw+G),M+k*(h+G),cw,h])})})}
+    if(small.length){var sw=(W-G*(small.length-1))/small.length,y=M+topH+G;small.forEach(function(i,k){put(i,[M+k*(sw+G),y,sw,smallH])})}
     return out;
   }
   var count={};
@@ -888,7 +895,7 @@ function savePng(ids,name){
 function viewOutfits(){
   var A=active(),s=curSeason();
   if(!SUG&&A.length)SUG={occ:"all",res:suggest("all")};
-  var h=top(lbl(SEASONS,s)+" · подбираю из того, что давно не носила","Образы",readOnly?'':'<span class="seg" role="group" aria-label="Вид образа"><button class="'+(figMode()==="body"?"on":"")+'" data-act="fig-body">Манекен</button><button class="'+(figMode()==="flat"?"on":"")+'" data-act="fig-flat">Раскладка</button></span>'+(figMode()==="body"?'<button class="btn ghost" data-act="face">'+(S.face?"Моё лицо":"Добавить своё лицо")+'</button>':'')+'<button class="btn acc" data-act="new-outfit"'+(A.length?'':' disabled')+'>'+ico("plus",18,2.4)+'Новый образ</button>');
+  var h=top(lbl(SEASONS,s)+" · подбираю из того, что давно не носила","Образы",readOnly?'':'<button class="btn acc" data-act="new-outfit"'+(A.length?'':' disabled')+'>'+ico("plus",18,2.4)+'Новый образ</button>');
   h+='<div class="today"><div class="hd"><div class="t">Образ на сегодня</div><div class="chips">'+[["all","Любой повод"]].concat(OCC.filter(function(o){return o[0]!=="home"&&o[0]!=="travel"})).map(function(o){return '<button class="chip '+(SUG&&SUG.occ===o[0]?"on":"")+'" data-sugocc="'+o[0]+'">'+o[1]+'</button>'}).join("")+'</div></div>';
   if(!A.length)h+='<div class="hint">Добавь вещи в гардероб — и я начну собирать образы.</div>';
   else if(!SUG.res)h+='<div class="hint">Не получилось собрать образ'+(SUG.occ!=="all"?" для этого повода":"")+'. Нужны платье или верх и низ под '+lbl(SEASONS,s).toLowerCase()+'.</div>';
@@ -1171,7 +1178,7 @@ function itemView(){
   if(readOnly)return h;
   if(d.gone)return h+'<div class="chips"><button class="btn" data-act="restore">Вернуть в гардероб</button><button class="btn ghost" data-act="edit-item">Изменить</button></div>';
   h+='<div style="display:flex;flex-direction:column;gap:8px;margin-top:6px"><button class="btn green" data-act="wear-today" style="min-height:50px">'+ico("check",18,2.4)+(wt?"Снять отметку за сегодня":"Надела сегодня")+'</button>'+
-    '<div class="row2" style="gap:8px"><button class="btn ghost" data-act="edit-item">Изменить</button><button class="btn ghost" data-act="to-outfit">В образ</button></div>'+(d.cat!=="other"&&P(d.photo)?'<button class="btn ghost" data-act="fit">Подогнать на манекене</button>':'')+'</div>';
+    '<div class="row2" style="gap:8px"><button class="btn ghost" data-act="edit-item">Изменить</button><button class="btn ghost" data-act="to-outfit">В образ</button></div>'+'</div>';
   return h;
 }
 function itemForm(){
