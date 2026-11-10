@@ -372,7 +372,9 @@ backpack:'<path d="M7 10a5 5 0 0 1 10 0v10.5H7z"/><path d="M10 4.5h4M9.5 14.5h5"
 carry:'<rect x="6.5" y="8" width="11" height="12" rx="2"/><path d="M10 8V3.5h4V8M9 20v1.5M15 20v1.5"/>',
 spark:'<path d="M12 3l2.2 5.8L20 11l-5.8 2.2L12 19l-2.2-5.8L4 11l5.8-2.2z"/>',
 back:'<path d="M15 5l-7 7 7 7"/>',
-cam:'<path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>'};
+cam:'<path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+upload:'<path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M5 14v5h14v-5"/>',
+link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'};
 var WEATHER=[["hot","Жара 25°+","therm"],["warm","Тепло 18–25°","sun"],["cool","Прохладно 10–17°","cloud"],["cold","Холодно 0–9°","therm"],["frost","Мороз","snow"],["rain","Дождь","rain"],["wind","Ветер","wind"],["snow","Снег","snow"]];
 var LUG=[["backpack","Рюкзак","до 7 вещей",7],["carry","Ручная кладь","до 12 вещей",12],["bag","Багаж","без ограничений",99]];
 var ACTS=[["road","Дорога","daily"],["walk","Прогулки","daily"],["museum","Музеи","daily"],["work","Работа/встречи","work"],["dinner","Ужин в ресторане","evening"],["beach","Пляж","travel"],["sport","Спорт","sport"],["party","Вечеринка","evening"],["hike","Поход","sport"]];
@@ -1150,7 +1152,17 @@ function mh(title,kicker){return '<div class="mh"><div>'+(kicker?'<div class="k"
 function opts(field,list,cur){return '<div class="opts">'+list.map(function(o){return '<button type="button" class="opt '+(cur===o[0]?"on "+(o[2]||""):"")+'" data-opt="'+field+'" data-val="'+o[0]+'">'+o[1]+'</button>'}).join("")+'</div>'}
 function multi(field,list,cur){cur=cur||[];return '<div class="opts">'+list.map(function(o){return '<button type="button" class="opt '+(cur.indexOf(o[0])>=0?"on":"")+'" data-multi="'+field+'" data-val="'+o[0]+'">'+o[1]+'</button>'}).join("")+'</div>'}
 function catSelect(cur){return '<select class="inp" data-f="cat" aria-label="Категория">'+CATS.map(function(c){return '<option value="'+c[0]+'"'+(c[0]===cur?" selected":"")+'>'+c[1]+'</option>'}).join("")+'</select>'}
-function photoField(d){var p=P(d.photo);return '<div class="f"><div class="photo-drop"><div class="prev" style="background:'+cbg(d.cat)+'">'+(p?'<img src="'+esc(p)+'" alt="">':sil(d.cat))+'</div><div><label class="btn ghost sm" style="cursor:pointer">'+ico("cam",17)+(p?"Заменить фото":"Добавить фото")+'<input type="file" accept="image/*" id="ph" hidden></label>'+(p?' <button type="button" class="btn ghost sm" data-act="rm-photo">Убрать</button>':'')+'<div class="hint" style="margin-top:8px">'+(d.cut?"Фон вырезан — вещь ляжет на цветную подложку":"Совет: вырежи фон на айпаде — получится как на макете")+'</div></div></div></div>'}
+function photoField(d){var p=P(d.photo);
+  var h='<div class="f"><div class="photo-drop"><div class="prev" style="background:'+cbg(d.cat)+'">'+(p?'<img src="'+esc(p)+'" alt="">':sil(d.cat))+'</div><div style="flex:1;min-width:0"><div class="chips" style="gap:6px">'+
+    '<label class="btn ghost sm" style="cursor:pointer">'+ico("cam",17)+'Сфотографировать<input type="file" accept="image/*" capture="environment" class="phin" hidden></label>'+
+    '<label class="btn ghost sm" style="cursor:pointer">'+ico("upload",17)+'С устройства<input type="file" accept="image/*" class="phin" hidden></label>'+
+    '<button type="button" class="btn ghost sm'+(d._url?' on':'')+'" data-act="photo-url">'+ico("link",17)+'По ссылке</button>'+
+    (p?'<button type="button" class="btn ghost sm" data-act="rm-photo">Убрать</button>':'')+'</div>'+
+    '<div class="hint" style="margin-top:8px">'+(d._busy?"Загружаю фото…":d.cut?"Фон вырезан — вещь ляжет на цветную подложку":d.remote?"Фото по ссылке — показывается, когда есть интернет":"Совет: вырежи фон на айпаде — получится красивее")+'</div></div></div>';
+  if(d._url)h+='<div class="urlbox" style="margin-top:10px;display:flex;flex-direction:column;gap:8px"><div style="display:flex;gap:8px"><input class="inp" id="photourl" type="url" inputmode="url" placeholder="Вставь ссылку на картинку или саму картинку" style="flex:1"><button type="button" class="btn acc sm" data-act="photo-url-go">Добавить</button></div>'+
+    '<div class="hint">Если ссылка не сработает: в Safari подержи палец на фото товара → «Скопировать», потом нажми в это поле → «Вставить». Картинка сразу добавится.</div></div>';
+  return h+'</div>';
+}
 function pickGrid(sel,exclCat,attr,first){
   var A=active().filter(function(i){return i.cat!==exclCat});
   if(!A.length)return '<div class="hint">Сначала добавь вещи в гардероб.</div>';
@@ -1159,6 +1171,23 @@ function pickGrid(sel,exclCat,attr,first){
   function pbtn(i){return '<button type="button" data-'+(attr||"pair")+'="'+i.id+'" class="'+(sel.indexOf(i.id)>=0?"on":"")+'" style="background:'+cbg(i.cat)+'">'+(P(i.photo)?'<img src="'+esc(P(i.photo))+'" alt="">':sil(i.cat))+'<span>'+esc(iname(i))+'</span></button>'}
   CATS.forEach(function(c){var L=A.filter(function(i){return i.cat===c[0]});if(!L.length)return;h+='<div class="pickcat">'+c[1]+'</div>';L.forEach(function(i){h+=pbtn(i)})});
   return h+'</div>';
+}
+function setPhotoFrom(file){
+  if(!draft)return;draft._busy=true;drawModal();
+  return processPhoto(file).then(function(r){if(draft){draft.photo=r.url;draft.cut=r.cut;draft.ar=r.ar;draft.bb=r.bb;delete draft.remote;delete draft.fit;draft._busy=false;draft._url=false;drawModal()}})
+    .catch(function(){if(draft){draft._busy=false;drawModal()}toast("Не получилось загрузить фото")});
+}
+function urlImport(url){
+  url=(url||"").trim();if(!/^https?:\/\//i.test(url)){toast("Вставь ссылку, которая начинается с https://");return}
+  draft._busy=true;drawModal();
+  function asFile(b){return new File([b],"photo",{type:b.type||"image/jpeg"})}
+  var tryDirect=fetch(url,{mode:"cors"}).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){if(!/^image\//.test(b.type))throw 0;return b});
+  var chain=tryDirect.catch(function(){if(!LOCAL)throw 0;return fetch("/api/fetch?url="+encodeURIComponent(url)).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){if(!/^image\//.test(b.type))throw 0;return b})});
+  chain.then(function(b){return setPhotoFrom(asFile(b))}).catch(function(){
+    if(!art&&!assets){var im=new Image();im.onload=function(){if(!draft)return;draft.photo=url;draft.remote=true;draft.cut=false;draft.ar=im.naturalHeight/im.naturalWidth;draft.bb=[0,0,1,1];draft._busy=false;draft._url=false;drawModal();toast("Фото по ссылке добавлено")};
+      im.onerror=function(){if(draft){draft._busy=false;drawModal()}toast("По этой ссылке нет картинки. Скопируй саму картинку и вставь её в поле")};im.src=url;return}
+    if(draft){draft._busy=false;drawModal()}toast("Магазин не даёт скачать картинку. Скопируй саму картинку и вставь её в поле");
+  });
 }
 function itemModal(){return draft._edit?itemForm():itemView()}
 function itemView(){
@@ -1306,7 +1335,7 @@ function dqForm(){
   return h;
 }
 function setPath(obj,path,val){var p=path.split(".");var o=obj;for(var i=0;i<p.length-1;i++)o=o[p[i]];o[p[p.length-1]]=val}
-function cleanDraft(){var d=JSON.parse(JSON.stringify(draft));delete d._new;delete d._edit;return d}
+function cleanDraft(){var d=JSON.parse(JSON.stringify(draft));delete d._new;delete d._edit;delete d._url;delete d._busy;return d}
 function upsert(arr,d){var i=arr.findIndex(function(x){return x.id===d.id});if(i>=0)arr[i]=d;else arr.push(d)}
 function toggle(arr,v){var k=arr.indexOf(v);if(k>=0)arr.splice(k,1);else arr.push(v)}
 
@@ -1408,7 +1437,9 @@ document.addEventListener("click",function(ev){
   if(a==="edit-item"){draft._edit=true;drawModal();return}
   if(a==="cancel-edit"){var orig=byId(draft.id);draft=JSON.parse(JSON.stringify(orig));draft._edit=false;drawModal();return}
   if(a==="to-outfit"){var iid=draft.id;closeModal();openOutfit(null,[iid]);return}
-  if(a==="rm-photo"){draft.photo="";draft.cut=false;delete draft.ar;delete draft.bb;delete draft.fit;drawModal();return}
+  if(a==="photo-url"){draft._url=!draft._url;drawModal();setTimeout(function(){var u=$("#photourl");if(u)u.focus()},50);return}
+  if(a==="photo-url-go"){var uv=$("#photourl");urlImport(uv?uv.value:"");return}
+  if(a==="rm-photo"){draft.photo="";draft.cut=false;delete draft.remote;delete draft.ar;delete draft.bb;delete draft.fit;drawModal();return}
   if(a==="save-item"){var d=cleanDraft();if(d.name)delete d.needsInfo;upsert(S.items,d);var wasNew=draft._new;closeModal();commit();if(wasNew)toast("Добавила «"+iname(d)+"»");return}
   if(a==="wear-today"){var id0=draft.id;if(wornToday(id0)){unlogWear(id0,today());toast("Отметку сняла")}else{logWear([id0]);toast("Отмечено")}draft=JSON.parse(JSON.stringify(byId(id0)));draft._edit=false;commit();return}
   if(a==="restore"){var d3=cleanDraft();delete d3.gone;delete d3.goneDate;d3.decision="keep";upsert(S.items,d3);closeModal();commit();toast("Вернула в гардероб");return}
@@ -1490,9 +1521,8 @@ document.addEventListener("change",function(ev){
   if(t.dataset.ui){ui[t.dataset.ui]=t.value;keepUi();render();return}
   if(TD&&(t.dataset.tf==="start"||t.dataset.tf==="end")){TD[t.dataset.tf]=t.value;if(t.dataset.tf==="start"&&(!TD.end||TD.end<TD.start))TD.end=TD.start;render();return}
   if(draft&&t.dataset.f==="cat"){draft.cat=t.value;if(mode==="wish"&&draft.check&&draft.check.pairs){draft.check.pairs=draft.check.pairs.filter(function(id){var i=byId(id);return i&&i.cat!==draft.cat})}drawModal();return}
-  if(draft&&t.id==="ph"&&t.files&&t.files[0]){
-    var prev=$(".photo-drop .prev");if(prev)prev.innerHTML='<span class="hint">…</span>';
-    processPhoto(t.files[0]).then(function(r){if(draft){draft.photo=r.url;draft.cut=r.cut;draft.ar=r.ar;draft.bb=r.bb;delete draft.fit;drawModal()}}).catch(function(){toast("Не получилось загрузить фото");if(draft)drawModal()});
+  if(draft&&t.classList&&t.classList.contains("phin")&&t.files&&t.files[0]){
+    setPhotoFrom(t.files[0]);
     return;
   }
   if(draft&&mode==="face"&&t.id==="facefile"&&t.files&&t.files[0]){
@@ -1526,7 +1556,15 @@ document.addEventListener("pointermove",function(ev){
 },{passive:false});
 function ptrEnd(ev){if(PTR[ev.pointerId]){delete PTR[ev.pointerId];delete PTR._d0}}
 document.addEventListener("pointerup",ptrEnd);document.addEventListener("pointercancel",ptrEnd);
-document.addEventListener("keydown",function(ev){if(ev.key==="Escape"&&draft){closeModal();if(dirty)flushSoon()}});
+document.addEventListener("paste",function(ev){
+  if(!draft||(mode!=="item"&&mode!=="wish"))return;
+  var cd=ev.clipboardData;if(!cd)return;var f=null;
+  if(cd.files&&cd.files.length){for(var i=0;i<cd.files.length;i++)if(/^image\//.test(cd.files[i].type)){f=cd.files[i];break}}
+  if(!f&&cd.items){for(var j=0;j<cd.items.length;j++){var it=cd.items[j];if(it.kind==="file"&&/^image\//.test(it.type)){f=it.getAsFile();break}}}
+  if(f){ev.preventDefault();setPhotoFrom(f);return}
+  var txt=cd.getData("text");if(ev.target&&ev.target.id==="photourl"&&/^https?:\/\//i.test((txt||"").trim())){ev.preventDefault();ev.target.value=txt.trim();urlImport(txt)}
+});
+document.addEventListener("keydown",function(ev){if(ev.key==="Enter"&&ev.target&&ev.target.id==="photourl"){ev.preventDefault();urlImport(ev.target.value);return}if(ev.key==="Escape"&&draft){closeModal();if(dirty)flushSoon()}});
 window.addEventListener("hashchange",function(){if(tab()!=="trips"){TD=null}render();window.scrollTo(0,0)});
 window.addEventListener("pagehide",function(){if(LOCAL&&dirty){try{fetch("/api/data",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(S),keepalive:true})}catch(e){}}});
 
