@@ -156,6 +156,16 @@ main.main{flex:1;min-width:0;padding:28px 30px 110px}
 .collage.n1{grid-template-columns:1fr;grid-template-rows:1fr}
 .collage.n2{grid-template-rows:1fr}
 .collage.n3>div:first-child{grid-row:span 2}
+/* mannequin figure */
+.fig{position:relative;aspect-ratio:3/4;background:var(--lav);border-radius:18px;overflow:hidden;width:100%}
+.fig .mq{position:absolute;inset:0;width:100%;height:100%;color:var(--paper);opacity:.7}
+.fig .it{position:absolute;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.fig .it img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 6px 8px rgba(46,36,51,.22))}
+.fig .it img.ph-rect{border-radius:8px}
+.fig .it .sil{width:100%;height:100%;color:var(--muted);opacity:.55}
+.fig.empty-fig::after{content:"Выбери вещи";position:absolute;left:0;right:0;bottom:12px;text-align:center;font-size:12.5px;font-weight:700;color:var(--muted)}
+.todaywrap{display:grid;grid-template-columns:240px minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:700px){.todaywrap{grid-template-columns:1fr}.todaywrap .fig{max-width:260px;margin:0 auto}}
 /* trips */
 .tripform{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:24px}
 .fld{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
@@ -767,6 +777,51 @@ function collage(ids){
   var its=ids.map(byId).filter(Boolean).slice(0,4),n=its.length||1;
   return '<div class="collage n'+Math.min(n,4)+'">'+(its.length?its.map(function(i){return '<div style="background:'+cbg(i.cat)+'">'+pic(i)+'</div>'}).join(""):'<div style="background:var(--lav)">'+sil("dress")+'</div>')+'</div>';
 }
+var MQ='<svg class="mq" aria-hidden="true" viewBox="0 0 300 400" fill="currentColor"><ellipse cx="150" cy="32" rx="17" ry="21"/><path d="M140 52h20l3 11c22 3 38 9 42 24l7 86c1 6-9 7-11 1l-10-70-3 52c6 34 7 56 5 76l-8 152c0 7-17 7-17 0l-9-138h-18l-9 138c0 7-17 7-17 0l-8-152c-2-20-1-42 5-76l-3-52-10 70c-2 6-12 5-11-1l7-86c4-15 20-21 42-24z"/></svg>';
+var SLOT={acc:{x:50,y:10,w:24,h:13,z:8},outer:{x:50,y:13,w:62,h:44,z:1},top:{x:50,y:14,w:50,h:34,z:4},dress:{x:50,y:13,w:52,h:62,z:3},bottom:{x:50,y:43,w:40,h:42,z:2},shoes:{x:50,y:84,w:36,h:14,z:5},bag:{x:80,y:40,w:26,h:24,z:7},swim:{x:50,y:16,w:44,h:34,z:4},sport:{x:50,y:14,w:48,h:34,z:4},other:{x:18,y:74,w:24,h:20,z:6}};
+function figLayout(ids){
+  var its=ids.map(byId).filter(function(i){return i&&!i.gone});
+  var has=function(c){return its.some(function(i){return i.cat===c})};
+  var body=has("top")||has("dress");
+  var out=[],count={};
+  its.forEach(function(i){
+    var c=i.cat,s=SLOT[c]||SLOT.other;
+    s={x:s.x,y:s.y,w:s.w,h:s.h,z:s.z};
+    if((c==="sport"||c==="swim")&&body){s={x:18,y:c==="swim"?24:50,w:26,h:22,z:6}}
+    if(c==="outer"&&body){s.x=34;s.w=52}
+    if((c==="top"||c==="dress")&&has("outer")){s.x=62;s.w=c==="dress"?46:44}
+    var k=count[c]||0;count[c]=k+1;
+    if(k){s.x+=12*k;s.y+=4*k;s.w*=.82;s.h*=.82;s.z-=1}
+    out.push({i:i,s:s});
+  });
+  return out;
+}
+function figure(ids,opts){
+  opts=opts||{};var L=figLayout(ids||[]);
+  return '<div class="fig'+(L.length?'':' empty-fig')+'">'+MQ+L.map(function(o){var i=o.i,s=o.s,p=P(i.photo);
+    return '<div class="it"'+(opts.noclick?'':' data-item="'+i.id+'"')+' title="'+esc(iname(i))+'" style="left:'+(s.x-s.w/2)+'%;top:'+s.y+'%;width:'+s.w+'%;height:'+s.h+'%;z-index:'+s.z+'">'+(p?'<img src="'+esc(p)+'" alt=""'+(i.cut?'':' class="ph-rect"')+'>':sil(i.cat))+'</div>'}).join("")+'</div>';
+}
+function figPng(ids){
+  var W=900,H=1200,c=document.createElement("canvas");c.width=W;c.height=H;var x=c.getContext("2d");
+  var cs=getComputedStyle(document.documentElement);x.fillStyle=(cs.getPropertyValue("--lav")||"#EEDDFF").trim();x.fillRect(0,0,W,H);
+  x.save();x.scale(W/300,H/400);x.globalAlpha=.7;x.fillStyle=(cs.getPropertyValue("--paper")||"#fff").trim();
+  var pth=new Path2D("M140 52h20l3 11c22 3 38 9 42 24l7 86c1 6-9 7-11 1l-10-70-3 52c6 34 7 56 5 76l-8 152c0 7-17 7-17 0l-9-138h-18l-9 138c0 7-17 7-17 0l-8-152c-2-20-1-42 5-76l-3-52-10 70c-2 6-12 5-11-1l7-86c4-15 20-21 42-24z");
+  x.beginPath();x.ellipse(150,32,17,21,0,0,Math.PI*2);x.fill();x.fill(pth);x.restore();
+  var L=figLayout(ids).filter(function(o){return P(o.i.photo)}).sort(function(a,b){return a.s.z-b.s.z});
+  return Promise.all(L.map(function(o){return new Promise(function(res){var im=new Image();im.onload=function(){res({o:o,im:im})};im.onerror=function(){res(null)};im.src=P(o.i.photo)})})).then(function(arr){
+    arr.forEach(function(r){if(!r)return;var s=r.o.s,bw=s.w/100*W,bh=s.h/100*H,bx=(s.x-s.w/2)/100*W,by=s.y/100*H,k=Math.min(bw/r.im.width,bh/r.im.height),w=r.im.width*k,h=r.im.height*k;
+      x.shadowColor="rgba(46,36,51,.22)";x.shadowBlur=18;x.shadowOffsetY=10;x.drawImage(r.im,bx+(bw-w)/2,by+(bh-h)/2,w,h)});
+    return new Promise(function(res){c.toBlob(res,"image/png")});
+  });
+}
+function savePng(ids,name){
+  figPng(ids).then(function(b){
+    var fn=(name||"obraz").replace(/[^\wа-яё -]/gi,"").trim()||"obraz";
+    if(LOCAL||PWA){var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=fn+".png";document.body.appendChild(a);a.click();a.remove();toast("Картинка сохранена");return}
+    if(dls){b.arrayBuffer().then(function(buf){return dls.save({filename:fn+".png",data:new Uint8Array(buf)})}).catch(function(){toast("Не получилось сохранить картинку")});return}
+    toast("Здесь сохранить картинку нельзя");
+  }).catch(function(){toast("Не получилось собрать картинку")});
+}
 function viewOutfits(){
   var A=active(),s=curSeason();
   if(!SUG&&A.length)SUG={occ:"all",res:suggest("all")};
@@ -777,7 +832,7 @@ function viewOutfits(){
   else{
     var its=SUG.res.items.map(byId).filter(Boolean),o=SUG.res.outfit?S.outfits.find(function(x){return x.id===SUG.res.outfit}):null;
     if(o)h+='<div class="hint">Твой сохранённый образ «'+esc(o.name||"Образ")+'»</div>';
-    h+='<div class="look">'+its.map(function(i){var ds=i.lastWorn?daysSince(i.lastWorn):null;return '<div class="li" data-item="'+i.id+'"><div class="ph" style="background:'+cbg(i.cat)+'">'+pic(i)+'</div><b>'+esc(iname(i))+'</b><span>'+(ds==null?"ещё не носила":ds===0?"сегодня":"не носила "+dd(ds))+'</span></div>'}).join("")+'</div>';
+    h+='<div class="todaywrap">'+figure(SUG.res.items)+'<div style="display:flex;flex-direction:column;gap:2px">'+its.map(function(i){var ds=i.lastWorn?daysSince(i.lastWorn):null;return mini(i,cat(i.cat)[1]+' · '+(ds==null?"ещё не носила":ds===0?"сегодня":"не носила "+dd(ds)))}).join("")+'</div></div>';
     if(!readOnly)h+='<div class="chips"><button class="btn acc" data-act="sug-wear">Надела этот образ</button><button class="btn ghost" data-act="sug-again">Другой вариант</button>'+(o?'':'<button class="btn ghost" data-act="sug-save">Сохранить</button>')+'</div>';
   }
   h+='</div>';
@@ -806,7 +861,7 @@ function viewOutfits(){
   h+='<div class="grid">';
   list.forEach(function(o){
     var ok=o.items.filter(function(id){var i=byId(id);return i&&!i.gone}),gone=o.items.length-ok.length;
-    h+='<div class="card" data-outfit="'+o.id+'">'+collage(ok)+'<div class="cap"><div style="min-width:0"><div class="nm">'+esc(o.name||"Образ")+'</div><div class="meta">'+(o.wears?times(o.wears)+(o.lastWorn?" · "+nice(o.lastWorn):""):"ещё не надевала")+(gone?' · '+gone+' уже нет':'')+'</div></div>'+
+    h+='<div class="card" data-outfit="'+o.id+'">'+figure(ok,{noclick:true})+'<div class="cap"><div style="min-width:0"><div class="nm">'+esc(o.name||"Образ")+'</div><div class="meta">'+(o.wears?times(o.wears)+(o.lastWorn?" · "+nice(o.lastWorn):""):"ещё не надевала")+(gone?' · '+gone+' уже нет':'')+'</div></div>'+
       (readOnly?'':'<button class="plus'+(o.lastWorn===today()?' done':'')+'" data-wearoutfit="'+o.id+'" aria-label="Надела этот образ сегодня">'+ico(o.lastWorn===today()?"check":"plus",16,2.4)+'</button>')+'</div></div>';
   });
   return h+'</div>';
@@ -871,7 +926,7 @@ function tripDetail(t){
   (t.days||[]).forEach(function(day){
     var its=((t.plan||{})[day.date]||[]).map(byId).filter(Boolean);
     h+='<div class="daycard"><div class="h"><b>'+dshort(day.date)+'</b><span>'+((day.acts||[]).length?day.acts.map(function(a){return lbl(ACTS,a)}).join(" · "):"без планов")+'</span></div>'+
-      '<div class="ths" style="gap:6px">'+its.map(function(i){return tile(i,true)}).join("")+'</div>'+(readOnly?'':'<button class="btn ghost sm" data-tripday="'+day.date+'" style="margin-top:auto">Изменить</button>')+'</div>';
+      figure((t.plan||{})[day.date]||[])+(readOnly?'':'<button class="btn ghost sm" data-tripday="'+day.date+'" style="margin-top:auto">Изменить</button>')+'</div>';
   });
   h+='</div>';
   if(!readOnly)h+='<div style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap">'+(t.status!=="done"&&du!=null&&du<=0?'<button class="btn green" data-act="trip-done">'+ico("check",18,2.4)+'Вернулась — записать образы в календарь</button>':'')+(t.status==="done"?'<span class="hint">Образы поездки записаны в календарь.</span>':'')+'<button class="btn danger sm" data-act="trip-del">Удалить поездку</button></div>';
@@ -1103,13 +1158,13 @@ function wishForm(){
 function outfitForm(){
   var d=draft,h=mh(d._new?"Новый образ":esc(d.name||"Образ"));
   var its=d.items.map(byId).filter(function(i){return i&&!i.gone});
-  h+='<div class="look" style="margin-bottom:14px">'+(its.length?its.map(function(i){return '<div class="li" style="width:110px"><div class="ph" style="background:'+cbg(i.cat)+'">'+pic(i)+'</div><b>'+esc(iname(i))+'</b></div>'}).join(""):'<div class="hint">Выбери вещи ниже</div>')+'</div>';
+  h+='<div style="max-width:250px;margin:0 auto 14px">'+figure(d.items,{noclick:true})+'</div>';
   h+='<div class="f"><label class="lb">Название</label><input class="inp" data-f="name" value="'+esc(d.name)+'" placeholder="Пятница в офисе"></div>';
   h+='<div class="f"><span class="lb">Вещи в образе</span>'+pickGrid(d.items,null,"oitem")+'</div>';
   h+='<div class="row2"><div class="f"><span class="lb">Повод</span>'+multi("occ",OCC,d.occ)+'</div><div class="f"><span class="lb">Сезон</span>'+multi("seasons",SEASONS,d.seasons)+'</div></div>';
   if(!d._new)h+='<div class="hint" style="margin-bottom:10px">Надевала образ '+times(d.wears||0)+(d.lastWorn?', последний раз '+nice(d.lastWorn):'')+'</div>';
   h+='<div class="ft"><div>'+(d._new?'':'<button class="btn danger sm" data-act="del-outfit">Удалить</button>')+'</div><div class="r">'+
-    '<button class="btn ghost" data-act="wear-outfit"'+(its.length?'':' disabled')+'>Надела сегодня</button><button class="btn acc" data-act="save-outfit"'+(d.items.length?'':' disabled')+'>Сохранить</button></div></div>';
+    (its.some(function(i){return P(i.photo)})?'<button class="btn ghost" data-act="save-png">Сохранить картинку</button>':'')+'<button class="btn ghost" data-act="wear-outfit"'+(its.length?'':' disabled')+'>Надела сегодня</button><button class="btn acc" data-act="save-outfit"'+(d.items.length?'':' disabled')+'>Сохранить</button></div></div>';
   return h;
 }
 function dayForm(){
@@ -1263,6 +1318,7 @@ document.addEventListener("click",function(ev){
     S.items.push({id:uid(),name:w.name,cat:w.cat,color:"",seasons:[],occ:[],photo:w.photo,cut:w.cut,wears:0,lastWorn:"",added:today(),notes:w.link?("Куплено: "+w.link):"",price:w.price,fromWish:w.id});
     closeModal();commit();toast("Добавила в гардероб");return}
   if(a==="save-outfit"){var o=cleanDraft();if(!o.name)o.name=autoName(o.items);upsert(S.outfits,o);closeModal();commit();return}
+  if(a==="save-png"){savePng(draft.items,draft.name||autoName(draft.items));return}
   if(a==="del-outfit"){if(!t.dataset.sure){t.dataset.sure="1";t.textContent="Точно удалить?";return}var oid=draft.id;S.outfits=S.outfits.filter(function(x){return x.id!==oid});closeModal();commit();return}
   if(a==="wear-outfit"){var o2=cleanDraft();if(!o2.name)o2.name=autoName(o2.items);upsert(S.outfits,o2);closeModal();wearOutfit(o2.id);return}
   if(a==="sug-again"){SUG.res=suggest(SUG.occ,SUG.res&&SUG.res.outfit);render();return}

@@ -1,5 +1,5 @@
 // Мой гардероб — офлайн-кэш. Поменяй номер версии, если обновляешь файлы.
-const CACHE = "garderob-v2";
+const CACHE = "garderob-v3";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png"];
 
 self.addEventListener("install", (e) => {
