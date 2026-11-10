@@ -1163,13 +1163,14 @@ function photoField(d){var p=P(d.photo);
     '<div class="hint">Если ссылка не сработает: в Safari подержи палец на фото товара → «Скопировать», потом нажми в это поле → «Вставить». Картинка сразу добавится.</div></div>';
   return h+'</div>';
 }
-function pickGrid(sel,exclCat,attr,first){
-  var A=active().filter(function(i){return i.cat!==exclCat});
+function pickGrid(sel,lastCat,attr,first){
+  var A=active();
   if(!A.length)return '<div class="hint">Сначала добавь вещи в гардероб.</div>';
   var h='<div class="pick">';
   if(first&&first.length){var F=first.map(byId).filter(function(i){return i&&!i.gone});if(F.length){h+='<div class="pickcat">Из капсулы</div>';F.forEach(function(i){h+=pbtn(i)});A=A.filter(function(i){return first.indexOf(i.id)<0})}}
   function pbtn(i){return '<button type="button" data-'+(attr||"pair")+'="'+i.id+'" class="'+(sel.indexOf(i.id)>=0?"on":"")+'" style="background:'+cbg(i.cat)+'">'+(P(i.photo)?'<img src="'+esc(P(i.photo))+'" alt="">':sil(i.cat))+'<span>'+esc(iname(i))+'</span></button>'}
-  CATS.forEach(function(c){var L=A.filter(function(i){return i.cat===c[0]});if(!L.length)return;h+='<div class="pickcat">'+c[1]+'</div>';L.forEach(function(i){h+=pbtn(i)})});
+  var order=CATS.filter(function(c){return c[0]!==lastCat}).concat(CATS.filter(function(c){return c[0]===lastCat}));
+  order.forEach(function(c){var L=A.filter(function(i){return i.cat===c[0]});if(!L.length)return;h+='<div class="pickcat">'+c[1]+(c[0]===lastCat?' · та же категория':'')+'</div>';L.forEach(function(i){h+=pbtn(i)})});
   return h+'</div>';
 }
 function setPhotoFrom(file){
@@ -1520,7 +1521,7 @@ document.addEventListener("change",function(ev){
   var t=ev.target;
   if(t.dataset.ui){ui[t.dataset.ui]=t.value;keepUi();render();return}
   if(TD&&(t.dataset.tf==="start"||t.dataset.tf==="end")){TD[t.dataset.tf]=t.value;if(t.dataset.tf==="start"&&(!TD.end||TD.end<TD.start))TD.end=TD.start;render();return}
-  if(draft&&t.dataset.f==="cat"){draft.cat=t.value;if(mode==="wish"&&draft.check&&draft.check.pairs){draft.check.pairs=draft.check.pairs.filter(function(id){var i=byId(id);return i&&i.cat!==draft.cat})}drawModal();return}
+  if(draft&&t.dataset.f==="cat"){draft.cat=t.value;drawModal();return}
   if(draft&&t.classList&&t.classList.contains("phin")&&t.files&&t.files[0]){
     setPhotoFrom(t.files[0]);
     return;
