@@ -1,9 +1,15 @@
-// Мой гардероб — офлайн-кэш. Поменяй номер версии, если обновляешь файлы.
-const CACHE = "garderob-v2";
-const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png"];
+// Мой гардероб — офлайн-кэш.
+// Страница: сначала из сети (свежая версия), без сети — из кэша.
+// Иконки и шрифты: из кэша, в фоне обновляются.
+const CACHE = "garderob-v6";
+const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
+  e.waitUntil(
+    caches.open(CACHE)
+      .then((c) => Promise.all(CORE.map((u) => c.add(new Request(u, { cache: "reload" })).catch(() => null))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (e) => {
@@ -14,18 +20,40 @@ self.addEventListener("activate", (e) => {
   );
 });
 
-// Сначала из кэша (работает без интернета), а в фоне подтягиваем свежую версию.
+function isPage(req) {
+  if (req.mode === "navigate") return true;
+  const u = new URL(req.url);
+  return u.origin === self.location.origin && (u.pathname.endsWith("/") || u.pathname.endsWith("/index.html"));
+}
+
 self.addEventListener("fetch", (e) => {
-  if (e.request.method !== "GET") return;
+  const req = e.request;
+  if (req.method !== "GET") return;
+
+  if (isPage(req)) {
+    e.respondWith(
+      fetch(req, { cache: "no-store" })
+        .then((res) => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put("./index.html", copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match("./index.html").then((hit) => hit || caches.match("./")))
+    );
+    return;
+  }
+
   e.respondWith(
     caches.open(CACHE).then((cache) =>
-      cache.match(e.request, { ignoreSearch: true }).then((hit) => {
-        const net = fetch(e.request)
+      cache.match(req, { ignoreSearch: true }).then((hit) => {
+        const net = fetch(req)
           .then((res) => {
-            if (res && (res.ok || res.type === "opaque")) cache.put(e.request, res.clone());
+            if (res && (res.ok || res.type === "opaque")) cache.put(req, res.clone());
             return res;
           })
-          .catch(() => hit || (e.request.mode === "navigate" ? cache.match("./index.html") : undefined));
+          .catch(() => hit);
         return hit || net;
       })
     )
