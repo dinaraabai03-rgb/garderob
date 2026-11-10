@@ -181,6 +181,10 @@ main.main{flex:1;min-width:0;padding:28px 30px 110px}
 .fig.empty-fig::after{content:"Выбери вещи";position:absolute;left:0;right:0;bottom:12px;text-align:center;font-size:12.5px;font-weight:700;color:var(--muted)}
 .todaywrap{display:grid;grid-template-columns:240px minmax(0,1fr);gap:20px;align-items:start}
 @media (max-width:700px){.todaywrap{grid-template-columns:1fr}.todaywrap .fig{max-width:260px;margin:0 auto}}
+/* telegram */
+.tgprev{max-width:240px;margin:0 auto 12px}
+.tgprev img{width:100%;border-radius:16px;display:block}
+.tgnote{background:var(--sky);border-radius:14px;padding:10px 14px;font-size:13px;font-weight:600;margin-bottom:12px}
 /* trips */
 .tripform{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:24px}
 .fld{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
@@ -373,6 +377,7 @@ carry:'<rect x="6.5" y="8" width="11" height="12" rx="2"/><path d="M10 8V3.5h4V8
 spark:'<path d="M12 3l2.2 5.8L20 11l-5.8 2.2L12 19l-2.2-5.8L4 11l5.8-2.2z"/>',
 back:'<path d="M15 5l-7 7 7 7"/>',
 cam:'<path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+tg:'<path d="M21 4 3 11l6 2.5L18 7l-7 8 7 5z"/>',
 upload:'<path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M5 14v5h14v-5"/>',
 link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'};
 var WEATHER=[["hot","Жара 25°+","therm"],["warm","Тепло 18–25°","sun"],["cool","Прохладно 10–17°","cloud"],["cold","Холодно 0–9°","therm"],["frost","Мороз","snow"],["rain","Дождь","rain"],["wind","Ветер","wind"],["snow","Снег","snow"]];
@@ -886,6 +891,57 @@ function backfillMetrics(){
   var todo=S.items.concat(S.wish).filter(function(i){return i.photo&&!i.ar&&P(i.photo)});if(!todo.length)return;
   Promise.all(todo.map(function(i){return measure(P(i.photo)).then(function(m){if(m){i.ar=m.ar;i.bb=m.bb}})})).then(function(){commit()});
 }
+/* ---------- telegram ---------- */
+function tgCfg(){try{return JSON.parse(localStorage.getItem("wr-tg")||"null")||{}}catch(e){return {}}}
+function tgSave(c){try{localStorage.setItem("wr-tg",JSON.stringify(c))}catch(e){}}
+function hashTag(s){return "#"+String(s).toLowerCase().replace(/[^a-zа-яё0-9]+/gi,"")}
+function captionFor(ids,title){
+  var its=ids.map(byId).filter(function(i){return i&&!i.gone});
+  var lines=[];if(title)lines.push(title);
+  if(its.length>1||!title){lines.push("");its.forEach(function(i){lines.push("• "+iname(i)+(i.brand?" — "+i.brand:""))})}
+  var tags=["#образдня","#"+lbl(SEASONS,curSeason()).toLowerCase()];
+  var occ={};its.forEach(function(i){(i.occ||[]).forEach(function(o){occ[o]=1})});Object.keys(occ).slice(0,2).forEach(function(o){tags.push(hashTag(lbl(OCC,o)))});
+  lines.push("");lines.push(tags.join(" "));
+  return lines.join("\n").replace(/^\n+/,"").slice(0,1000);
+}
+function openPost(ids,title,single){
+  var cap=single?(iname(single)+(single.brand?" — "+single.brand:"")+"\n\n#гардероб "+hashTag(cat(single.cat)[1])):captionFor(ids,title);
+  openModal("post",{ids:ids,single:single?single.id:null,caption:cap,img:null,blob:null});
+  var mk=single?itemPng(single):figPng(ids);
+  mk.then(function(b){if(draft&&mode==="post"){draft.blob=b;draft.img=URL.createObjectURL(b);drawModal()}}).catch(function(){toast("Не получилось собрать картинку")});
+}
+function itemPng(i){
+  var W=900,H=1200,c=document.createElement("canvas");c.width=W;c.height=H;var x=c.getContext("2d"),cs=getComputedStyle(document.documentElement);
+  x.fillStyle=(cs.getPropertyValue("--"+cat(i.cat)[2])||"#EEDDFF").trim();x.fillRect(0,0,W,H);
+  return new Promise(function(res){var im=new Image();im.onload=function(){var g=geo(i),p=placeVis(g,{t:"box",box:[40,60,220,280]}),K=3;x.shadowColor="rgba(46,36,51,.22)";x.shadowBlur=18;x.shadowOffsetY=10;x.drawImage(im,p.x*K,p.y*K,p.w*K,p.h*K);c.toBlob(res,"image/png")};im.onerror=function(){c.toBlob(res,"image/png")};im.src=P(i.photo)});
+}
+function postForm(){
+  var d=draft,c=tgCfg(),h=mh("Пост в Telegram");
+  h+='<div class="tgprev">'+(d.img?'<img src="'+d.img+'" alt="">':'<div class="fig empty-fig" style="aspect-ratio:3/4"></div>')+'</div>';
+  h+='<div class="f"><label class="lb" for="tgcap">Подпись</label><textarea class="inp" id="tgcap" data-post="caption" rows="6">'+esc(d.caption)+'</textarea></div>';
+  if(!(c.token&&c.chat))h+='<div class="tgnote">Сейчас пост можно отправить через «Поделиться» и выбрать там Telegram и свой канал. Чтобы публиковать в канал в один клик, <button class="link" data-act="tg-setup" style="padding:0">подключи свой канал</button>.</div>';
+  h+='<div class="ft"><button class="btn ghost sm" data-act="tg-setup">'+(c.token?"Настройки канала":"Подключить канал")+'</button><div class="r">'+
+    '<button class="btn ghost" data-act="post-share"'+(d.blob?'':' disabled')+'>Поделиться…</button>'+
+    (c.token&&c.chat?'<button class="btn acc" data-act="post-send"'+(d.blob&&!d.sending?'':' disabled')+'>'+ico("tg",17)+(d.sending?"Отправляю…":"Опубликовать в "+esc(c.title||c.chat))+'</button>':'')+'</div></div>';
+  return h;
+}
+function tgForm(){
+  var d=draft,h=mh("Мой Telegram-канал");
+  h+='<ol style="font-size:13.5px;line-height:1.55;padding-left:18px;margin:0 0 14px">'+
+    '<li>В Telegram открой <b>@BotFather</b> → <b>/newbot</b>, придумай имя и логин бота. BotFather пришлёт <b>токен</b> — длинную строку с двоеточием.</li>'+
+    '<li>Открой свой канал → «Управление каналом» → «Администраторы» → «Добавить» → найди своего бота и разреши ему <b>публиковать сообщения</b>.</li>'+
+    '<li>Вставь сюда токен и адрес канала (например, <b>@dinara_style</b>) и нажми «Проверить».</li></ol>';
+  h+='<div class="f"><label class="lb" for="tgtok">Токен бота</label><input class="inp" id="tgtok" data-tg="token" value="'+esc(d.token)+'" placeholder="123456789:AA…" autocomplete="off"></div>';
+  h+='<div class="f"><label class="lb" for="tgchat">Канал</label><input class="inp" id="tgchat" data-tg="chat" value="'+esc(d.chat)+'" placeholder="@мой_канал"></div>';
+  h+='<div class="hint" style="margin-bottom:12px">Токен хранится только на этом устройстве — его нет ни на GitHub, ни в «Скачать копию». На каждом устройстве канал подключается отдельно.</div>';
+  if(d.msg)h+='<div class="tgnote" style="background:'+(d.ok?'var(--green-soft)':'var(--pink)')+'">'+esc(d.msg)+'</div>';
+  h+='<div class="ft"><div>'+(tgCfg().token?'<button class="btn danger sm" data-act="tg-forget">Отключить</button>':'')+'</div><div class="r"><button class="btn ghost" data-act="tg-check">Проверить</button><button class="btn acc" data-act="tg-save"'+(d.ok?'':' disabled')+'>Сохранить</button></div></div>';
+  return h;
+}
+function tgApi(token,method,body){
+  return fetch("https://api.telegram.org/bot"+encodeURIComponent(token).replace(/%3A/g,":")+"/"+method,{method:"POST",body:body}).then(function(r){return r.json()}).then(function(j){if(!j.ok)throw new Error(j.description||"error");return j.result});
+}
+function tgNormChat(c){c=(c||"").trim();if(/^(https?:\/\/)?(www\.)?t\.me\//i.test(c))c="@"+c.replace(/^(https?:\/\/)?(www\.)?t\.me\//i,"").split(/[/?#]/)[0];if(c&&c.charAt(0)!=="@"&&!/^-?\d+$/.test(c))c="@"+c;return c}
 function savePng(ids,name){
   figPng(ids).then(function(b){
     var fn=(name||"obraz").replace(/[^\wа-яё -]/gi,"").trim()||"obraz";
@@ -905,7 +961,7 @@ function viewOutfits(){
     var its=SUG.res.items.map(byId).filter(Boolean),o=SUG.res.outfit?S.outfits.find(function(x){return x.id===SUG.res.outfit}):null;
     if(o)h+='<div class="hint">Твой сохранённый образ «'+esc(o.name||"Образ")+'»</div>';
     h+='<div class="todaywrap">'+figure(SUG.res.items)+'<div style="display:flex;flex-direction:column;gap:2px">'+its.map(function(i){var ds=i.lastWorn?daysSince(i.lastWorn):null;return mini(i,cat(i.cat)[1]+' · '+(ds==null?"ещё не носила":ds===0?"сегодня":"не носила "+dd(ds)))}).join("")+'</div></div>';
-    if(!readOnly)h+='<div class="chips"><button class="btn acc" data-act="sug-wear">Надела этот образ</button><button class="btn ghost" data-act="sug-again">Другой вариант</button>'+(o?'':'<button class="btn ghost" data-act="sug-save">Сохранить</button>')+'</div>';
+    if(!readOnly)h+='<div class="chips"><button class="btn acc" data-act="sug-wear">Надела этот образ</button><button class="btn ghost" data-act="sug-again">Другой вариант</button><button class="btn ghost" data-act="post-today">'+ico("tg",17)+'В канал</button>'+(o?'':'<button class="btn ghost" data-act="sug-save">Сохранить</button>')+'</div>';
   }
   h+='</div>';
   // week
@@ -1144,7 +1200,7 @@ function drawModal(){
   o.classList.toggle("sheet",mode==="item");
   var m=o.querySelector(".modal"),st=m?m.scrollTop:0,ost=o.scrollTop;
   var pk=o.querySelector(".pick"),pst=pk?pk.scrollTop:0;
-  var body={item:itemModal,wish:wishForm,outfit:outfitForm,day:dayForm,dq:dqForm,tripday:tripDayForm,face:faceForm,fit:fitForm}[mode]();
+  var body={item:itemModal,wish:wishForm,outfit:outfitForm,day:dayForm,dq:dqForm,tripday:tripDayForm,face:faceForm,fit:fitForm,post:postForm,tg:tgForm}[mode]();
   o.innerHTML='<div class="modal" role="dialog" aria-modal="true">'+body+'</div>';
   var m2=o.querySelector(".modal");if(m2)m2.scrollTop=st;o.scrollTop=ost;var pk2=o.querySelector(".pick");if(pk2)pk2.scrollTop=pst;
 }
@@ -1208,7 +1264,7 @@ function itemView(){
   if(readOnly)return h;
   if(d.gone)return h+'<div class="chips"><button class="btn" data-act="restore">Вернуть в гардероб</button><button class="btn ghost" data-act="edit-item">Изменить</button></div>';
   h+='<div style="display:flex;flex-direction:column;gap:8px;margin-top:6px"><button class="btn green" data-act="wear-today" style="min-height:50px">'+ico("check",18,2.4)+(wt?"Снять отметку за сегодня":"Надела сегодня")+'</button>'+
-    '<div class="row2" style="gap:8px"><button class="btn ghost" data-act="edit-item">Изменить</button><button class="btn ghost" data-act="to-outfit">В образ</button></div>'+'</div>';
+    '<div class="row2" style="gap:8px"><button class="btn ghost" data-act="edit-item">Изменить</button><button class="btn ghost" data-act="to-outfit">В образ</button></div>'+(P(d.photo)?'<button class="btn ghost" data-act="post-item">'+ico("tg",17)+'Показать в канале</button>':'')+'</div>';
   return h;
 }
 function itemForm(){
@@ -1264,7 +1320,7 @@ function outfitForm(){
   h+='<div class="row2"><div class="f"><span class="lb">Повод</span>'+multi("occ",OCC,d.occ)+'</div><div class="f"><span class="lb">Сезон</span>'+multi("seasons",SEASONS,d.seasons)+'</div></div>';
   if(!d._new)h+='<div class="hint" style="margin-bottom:10px">Надевала образ '+times(d.wears||0)+(d.lastWorn?', последний раз '+nice(d.lastWorn):'')+'</div>';
   h+='<div class="ft"><div>'+(d._new?'':'<button class="btn danger sm" data-act="del-outfit">Удалить</button>')+'</div><div class="r">'+
-    (its.some(function(i){return P(i.photo)})?'<button class="btn ghost" data-act="save-png">Сохранить картинку</button>':'')+'<button class="btn ghost" data-act="wear-outfit"'+(its.length?'':' disabled')+'>Надела сегодня</button><button class="btn acc" data-act="save-outfit"'+(d.items.length?'':' disabled')+'>Сохранить</button></div></div>';
+    (its.some(function(i){return P(i.photo)})?'<button class="btn ghost" data-act="save-png">Сохранить картинку</button><button class="btn ghost" data-act="post-outfit">'+ico("tg",17)+'В канал</button>':'')+'<button class="btn ghost" data-act="wear-outfit"'+(its.length?'':' disabled')+'>Надела сегодня</button><button class="btn acc" data-act="save-outfit"'+(d.items.length?'':' disabled')+'>Сохранить</button></div></div>';
   return h;
 }
 function dayForm(){
@@ -1466,6 +1522,26 @@ document.addEventListener("click",function(ev){
   if(a==="face"){var pv=(SUG&&SUG.res&&SUG.res.items)||(S.outfits[0]&&S.outfits[0].items)||[];openModal("face",{face:S.face||"",adj:JSON.parse(JSON.stringify(S.faceAdj||{z:1,x:0,y:0})),preview:pv});return}
   if(a==="face-save"){S.face=draft.face;S.faceAdj=draft.adj;closeModal();commit();toast("Готово — теперь манекен с твоим лицом");return}
   if(a==="face-del"){if(!t.dataset.sure){t.dataset.sure="1";t.textContent="Точно убрать?";return}delete S.face;delete S.faceAdj;closeModal();commit();return}
+  if(a==="post-outfit"){var po=cleanDraft();openPost(po.items,po.name||autoName(po.items));return}
+  if(a==="post-today"){if(SUG&&SUG.res){var so=SUG.res.outfit?S.outfits.find(function(x){return x.id===SUG.res.outfit}):null;openPost(SUG.res.items,so?so.name:"Образ дня")}return}
+  if(a==="post-item"){var pi=byId(draft.id);if(pi)openPost([pi.id],null,pi);return}
+  if(a==="post-share"){var dd=draft,file=new File([dd.blob],"obraz.png",{type:"image/png"});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file],text:dd.caption}).catch(function(){})}
+    else{var la=document.createElement("a");la.href=dd.img;la.download="obraz.png";document.body.appendChild(la);la.click();la.remove();if(navigator.clipboard)navigator.clipboard.writeText(dd.caption).catch(function(){});toast("Картинка скачана, подпись скопирована — вставь их в Telegram")}
+    return}
+  if(a==="post-send"){var c2=tgCfg(),pd2=draft;if(!c2.token||!pd2.blob)return;pd2.sending=true;drawModal();
+    var fd=new FormData();fd.append("chat_id",c2.chat);fd.append("caption",pd2.caption||"");fd.append("photo",new File([pd2.blob],"obraz.png",{type:"image/png"}));
+    tgApi(c2.token,"sendPhoto",fd).then(function(){closeModal();toast("Опубликовано в "+(c2.title||c2.chat))}).catch(function(e){if(draft){draft.sending=false;drawModal()}toast("Не получилось опубликовать: "+(e&&e.message||"нет связи"))});return}
+  if(a==="tg-setup"){var cc=tgCfg(),back=mode==="post"?JSON.parse(JSON.stringify({ids:draft.ids,single:draft.single,caption:draft.caption})):null;openModal("tg",{token:cc.token||"",chat:cc.chat||"",ok:false,msg:"",back:back});return}
+  if(a==="tg-check"){var dt=draft;dt.chat=tgNormChat(dt.chat);if(!dt.token||!dt.chat){dt.msg="Вставь токен и адрес канала";dt.ok=false;drawModal();return}
+    dt.msg="Проверяю…";dt.ok=false;drawModal();
+    var b1=new FormData();
+    tgApi(dt.token,"getMe",b1).then(function(me){var b2=new FormData();b2.append("chat_id",dt.chat);return tgApi(dt.token,"getChat",b2).then(function(ch){var b3=new FormData();b3.append("chat_id",dt.chat);b3.append("user_id",me.id);return tgApi(dt.token,"getChatMember",b3).then(function(m){return {me:me,ch:ch,m:m}})})})
+      .then(function(r){if(!draft||mode!=="tg")return;var can=r.m.status==="creator"||(r.m.status==="administrator"&&r.m.can_post_messages!==false);
+        draft.ok=can;draft.title=r.ch.title||dt.chat;draft.msg=can?("Всё готово: бот @"+r.me.username+" может публиковать в «"+draft.title+"»."):("Бот @"+r.me.username+" ещё не администратор канала или ему не разрешено публиковать сообщения.");drawModal()})
+      .catch(function(e){if(!draft||mode!=="tg")return;draft.ok=false;var m=(e&&e.message)||"";draft.msg=/Unauthorized/i.test(m)?"Токен не подходит — проверь, что скопировала его целиком.":/chat not found/i.test(m)?"Канал не найден — проверь адрес и что бот добавлен в канал.":(/Failed to fetch|NetworkError|Load failed/i.test(m)?"Нет связи с Telegram — проверь интернет и попробуй ещё раз.":"Не получилось проверить: "+(m||"нет связи с Telegram"));drawModal()});return}
+  if(a==="tg-save"){var ds2=draft;tgSave({token:ds2.token.trim(),chat:tgNormChat(ds2.chat),title:ds2.title||""});toast("Канал подключён");var bk=ds2.back;closeModal();if(bk){openPost(bk.ids,null,bk.single?byId(bk.single):null);if(draft)draft.caption=bk.caption}return}
+  if(a==="tg-forget"){try{localStorage.removeItem("wr-tg")}catch(e){}closeModal();toast("Канал отключён на этом устройстве");return}
   if(a==="save-png"){savePng(draft.items,draft.name||autoName(draft.items));return}
   if(a==="del-outfit"){if(!t.dataset.sure){t.dataset.sure="1";t.textContent="Точно удалить?";return}var oid=draft.id;S.outfits=S.outfits.filter(function(x){return x.id!==oid});closeModal();commit();return}
   if(a==="wear-outfit"){var o2=cleanDraft();if(!o2.name)o2.name=autoName(o2.items);upsert(S.outfits,o2);closeModal();wearOutfit(o2.id);return}
@@ -1513,6 +1589,8 @@ document.addEventListener("input",function(ev){
   var t=ev.target;
   if(t.id==="q"){ui.q=t.value;keepUi();var pos=t.selectionStart;render();var q=$("#q");if(q){q.focus();try{q.setSelectionRange(pos,pos)}catch(e){}}return}
   if(TD&&t.dataset.tf==="name"){TD.name=t.value;return}
+  if(draft&&mode==="post"&&t.dataset.post){draft.caption=t.value;return}
+  if(draft&&mode==="tg"&&t.dataset.tg){draft[t.dataset.tg]=t.value;draft.ok=false;return}
   if(draft&&mode==="fit"&&t.dataset.fit){draft.fit[t.dataset.fit]=Number(t.value);fitApply();return}
   if(draft&&mode==="face"&&t.dataset.fa){draft.adj[t.dataset.fa]=Number(t.value);var fi=$(".modal .face img");if(fi){var keep=S.faceAdj;S.faceAdj=draft.adj;fi.setAttribute("style",faceTf());S.faceAdj=keep}return}
   if(draft&&t.dataset.f&&t.dataset.f!=="cat"){var v=t.value;if(t.dataset.f==="wears")v=Math.max(0,parseInt(v)||0);setPath(draft,t.dataset.f,v)}
