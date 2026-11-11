@@ -1,7 +1,7 @@
 // Мой гардероб — офлайн-кэш.
 // Страница: сначала из сети (свежая версия), без сети — из кэша.
 // Иконки и шрифты: из кэша, в фоне обновляются.
-const CACHE = "garderob-v6";
+const CACHE = "garderob-v7";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", (e) => {
