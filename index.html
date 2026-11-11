@@ -181,6 +181,15 @@ main.main{flex:1;min-width:0;padding:28px 30px 110px}
 .fig.empty-fig::after{content:"Выбери вещи";position:absolute;left:0;right:0;bottom:12px;text-align:center;font-size:12.5px;font-weight:700;color:var(--muted)}
 .todaywrap{display:grid;grid-template-columns:240px minmax(0,1fr);gap:20px;align-items:start}
 @media (max-width:700px){.todaywrap{grid-template-columns:1fr}.todaywrap .fig{max-width:260px;margin:0 auto}}
+/* style check */
+.stylebox{border-radius:20px;padding:14px 16px;margin:4px 0 14px}
+.stylebox .sh{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.stylebox .sh b{font-family:Unbounded,sans-serif;font-size:15px}
+.meter{height:8px;border-radius:6px;background:rgba(255,255,255,.65);overflow:hidden;margin:10px 0}
+.meter i{display:block;height:100%;border-radius:6px}
+.stylebox ul{margin:0;padding-left:18px;font-size:13px;font-weight:600}
+.stylebox li{margin:3px 0}
+.sw.multi button.on{border-color:var(--paper);outline:2px solid var(--acc)}
 /* telegram */
 .tgprev{max-width:240px;margin:0 auto 12px}
 .tgprev img{width:100%;border-radius:16px;display:block}
@@ -383,6 +392,8 @@ link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 
 var WEATHER=[["hot","Жара 25°+","therm"],["warm","Тепло 18–25°","sun"],["cool","Прохладно 10–17°","cloud"],["cold","Холодно 0–9°","therm"],["frost","Мороз","snow"],["rain","Дождь","rain"],["wind","Ветер","wind"],["snow","Снег","snow"]];
 var LUG=[["backpack","Рюкзак","до 7 вещей",7],["carry","Ручная кладь","до 12 вещей",12],["bag","Багаж","без ограничений",99]];
 var ACTS=[["road","Дорога","daily"],["walk","Прогулки","daily"],["museum","Музеи","daily"],["work","Работа/встречи","work"],["dinner","Ужин в ресторане","evening"],["beach","Пляж","travel"],["sport","Спорт","sport"],["party","Вечеринка","evening"],["hike","Поход","sport"]];
+var STAGS=[["basic","Базовая"],["classic","Классика"],["casual","Кэжуал"],["romantic","Романтичная"],["sporty","Спортивная"],["boho","Бохо"],["edgy","Дерзкая"],["oversize","Оверсайз"],["fitted","Облегающая"],["print","Принт"],["bright","Яркая"],["shine","Блеск"],["mini","Мини"],["heels","Каблук"]];
+var NEUTRAL=["black","white","grey","beige","navy","brown"];
 var TSTYLE=[["relaxed","Расслабленно"],["classic","Классика"],["dressy","Нарядно"],["sporty","Спортивно"]];
 
 /* ---------- mode & state ---------- */
@@ -558,6 +569,64 @@ function processPhoto(file){
   });
 }
 
+/* ---------- my style ---------- */
+function myStyle(){var s=S.style||{};return {love:s.love||[],avoid:s.avoid||[],loveColors:s.loveColors||[],avoidColors:s.avoidColors||[],note:s.note||""}}
+function styleSet(){var m=myStyle();return !!(m.love.length||m.avoid.length||m.loveColors.length||m.avoidColors.length)}
+function harmon(a,b){if(!a||!b)return true;if(a===b)return true;var na=NEUTRAL.indexOf(a)>=0,nb=NEUTRAL.indexOf(b)>=0;if(na||nb)return true;return false}
+var COMP_CAT={top:["bottom","shoes","outer"],sport:["bottom","shoes"],bottom:["top","shoes","outer"],dress:["shoes","outer","bag"],outer:["top","bottom","dress"],shoes:["bottom","dress"],bag:["top","bottom","dress","outer"],acc:["top","bottom","dress","outer"],swim:[],other:[]};
+function wardrobeProfile(exclId){
+  var A=active().filter(function(i){return i.id!==exclId}),cw={},catw={},occw={},tot=0;
+  A.forEach(function(i){var w=1+(i.wears||0);tot+=w;if(i.color)cw[i.color]=(cw[i.color]||0)+w;catw[i.cat]=(catw[i.cat]||0)+w;(i.occ||[]).forEach(function(o){occw[o]=(occw[o]||0)+w})});
+  function top(o,n){return Object.keys(o).sort(function(a,b){return o[b]-o[a]}).slice(0,n)}
+  return {A:A,tot:tot,cw:cw,catw:catw,occw:occw,topColors:top(cw,3),topCats:top(catw,2),topOcc:top(occw,2)};
+}
+function styleCheck(x){
+  var m=myStyle(),pr=wardrobeProfile(x.id),A=pr.A,sc=50,why=[],tags=x.tags||[];
+  function add(n,t){sc+=n;why.push(t)}
+  if(!x.color)why.push("~ укажи цвет — оценка станет точнее");
+  else if(m.avoidColors.indexOf(x.color)>=0)add(-30,"✗ этот цвет ты отметила как нелюбимый");
+  else if(m.loveColors.indexOf(x.color)>=0)add(20,"✓ один из твоих любимых цветов");
+  else{var share=pr.tot?(pr.cw[x.color]||0)/pr.tot:0;
+    if(share>=.15)add(12,"✓ этот цвет часто в твоих образах");
+    else if(NEUTRAL.indexOf(x.color)>=0)add(6,"✓ базовый цвет — легко сочетать");
+    else if(A.length>=8&&!share)add(-10,"✗ такого цвета в гардеробе почти нет");}
+  var lv=0,av=0;tags.forEach(function(t){if(m.love.indexOf(t)>=0&&lv<3){lv++;add(8,"✓ «"+lbl(STAGS,t).toLowerCase()+"» — это твоё")}if(m.avoid.indexOf(t)>=0&&av<3){av++;add(-15,"✗ «"+lbl(STAGS,t).toLowerCase()+"» ты обычно избегаешь")}});
+  if(!tags.length)why.push("~ отметь характер вещи (базовая, принт, оверсайз…)");
+  var comp=COMP_CAT[x.cat]||[],pool=A.filter(function(i){return comp.indexOf(i.cat)>=0});
+  if(pool.length){var n=pool.filter(function(i){var ok=harmon(x.color,i.color);if(tags.indexOf("print")>=0&&(i.tags||[]).indexOf("print")>=0)ok=false;return ok}).length;
+    if(n>=5)add(12,"✓ сочетается с "+n+" "+plural(n,"вещью","вещами","вещами")+" из гардероба");
+    else if(n>=2)add(4,"~ сочетается с "+n+" вещами из гардероба");
+    else add(-12,"✗ почти не с чем сочетать по цвету");}
+  if(x.color){var dup=A.filter(function(i){return i.cat===x.cat&&i.color===x.color}).length;if(dup>=2)add(-8,"✗ похожих вещей уже "+dup+" ("+cat(x.cat)[1].toLowerCase()+", "+col(x.color)[1].toLowerCase()+")")}
+  var inCat=A.filter(function(i){return i.cat===x.cat});
+  if(inCat.length>=3&&pr.tot){var avgAll=pr.tot/A.length,avgCat=(pr.catw[x.cat]||0)/inCat.length;if(avgCat<avgAll*.5)add(-6,"✗ вещи этой категории ты носишь редко")}
+  if(pr.topCats.indexOf(x.cat)>=0&&A.length>=6)add(5,"✓ такие вещи ты носишь чаще всего");
+  if((x.occ||[]).some(function(o){return pr.topOcc.indexOf(o)>=0}))add(4,"✓ подходит для поводов, на которые ты чаще одеваешься");
+  sc=Math.max(0,Math.min(100,Math.round(sc)));
+  var low=!styleSet()&&A.length<5;
+  return {pct:sc,v:sc>=70?"go":sc>=45?"think":"no",why:why,low:low};
+}
+function styleBox(x){
+  var r=styleCheck(x),lab={go:["В твоём стиле","p-go","var(--green-soft)","var(--green)"],think:["Частично твоё","p-think","var(--warn)","var(--gold,#c49a3a)"],no:["Не очень твой стиль","p-no","var(--pink)","var(--acc)"]}[r.v];
+  var h='<div class="stylebox" style="background:'+lab[2]+'"><div class="sh"><b>Подходит ли под мой стиль? '+r.pct+'%</b><span class="pill '+lab[1]+'">'+lab[0]+'</span></div>'+
+    '<div class="meter"><i style="width:'+r.pct+'%;background:'+lab[3]+'"></i></div><ul>'+r.why.map(function(w){return '<li>'+esc(w)+'</li>'}).join("")+'</ul>';
+  h+='<div style="margin-top:8px">'+(r.low?'<span class="hint">Пока мало данных: добавь вещи или заполни «Мой стиль». </span>':'')+'<button type="button" class="link" data-act="style-open">'+(styleSet()?"Мой стиль":"Заполнить «Мой стиль»")+'</button></div></div>';
+  return h;
+}
+function styleForm(){
+  var d=draft,pr=wardrobeProfile(null),h=mh("Мой стиль");
+  h+='<div class="hint" style="margin-bottom:12px">Опиши, каким ты хочешь видеть свой гардероб. Проверка новых вещей будет опираться и на это, и на то, что ты реально носишь.</div>';
+  if(pr.A.length){h+='<div class="tgnote" style="background:var(--lav)"><b>По гардеробу видно:</b> чаще всего носишь '+(pr.topColors.length?pr.topColors.map(function(c){return col(c)[1].toLowerCase()}).join(", "):"—")+'; больше всего '+(pr.topCats.map(function(c){return cat(c)[1].toLowerCase()}).join(" и ")||"—")+(pr.topOcc.length?'; поводы — '+pr.topOcc.map(function(o){return lbl(OCC,o).toLowerCase()}).join(", "):"")+'.</div>'}
+  h+='<div class="f"><span class="lb">Мне нравится</span>'+multi("love",STAGS,d.love)+'</div>';
+  h+='<div class="f"><span class="lb">Избегаю</span>'+multi("avoid",STAGS,d.avoid)+'</div>';
+  function sw(field){return '<div class="sw multi">'+COLORS.map(function(c){return '<button type="button" aria-label="'+c[1]+'" title="'+c[1]+'" data-scol="'+field+'" data-val="'+c[0]+'" class="'+(d[field].indexOf(c[0])>=0?"on":"")+'" style="background:'+c[2]+'"></button>'}).join("")+'</div>'}
+  h+='<div class="f"><span class="lb">Любимые цвета</span>'+sw("loveColors")+'</div>';
+  h+='<div class="f"><span class="lb">Не люблю цвета</span>'+sw("avoidColors")+'</div>';
+  h+='<div class="f"><label class="lb" for="stnote">Своими словами</label><textarea class="inp" id="stnote" data-st="note" placeholder="Например: спокойные пастельные цвета, свободный крой, удобная обувь">'+esc(d.note)+'</textarea></div>';
+  h+='<div class="ft"><div></div><div class="r"><button class="btn ghost" data-act="style-cancel">Отмена</button><button class="btn acc" data-act="style-save">Сохранить</button></div></div>';
+  return h;
+}
+
 /* ---------- purchase verdict ---------- */
 function evalWish(w){
   var c=w.check||{},s=0,why=[];
@@ -573,6 +642,7 @@ function evalWish(w){
   if(c.fit==="yes"){s+=1;why.push("✓ удобно и хорошо сидит")}else if(c.fit==="no"){s-=1;why.push("✗ не уверена в посадке или удобстве")}
   if(c.budget==="yes"){s+=1}else if(c.budget==="no"){s-=1;why.push("✗ выходит за бюджет")}
   if(c.love>=4){s+=1;why.push("✓ по-настоящему нравится")}else if(c.love&&c.love<=2){s-=1;why.push("✗ особой любви нет")}
+  if(w.color||(w.tags&&w.tags.length)){var stc=styleCheck(w);if(stc.v==="go"){s+=1;why.push("✓ в твоём стиле ("+stc.pct+"%)")}else if(stc.v==="no"){s-=1;why.push("✗ не очень твой стиль ("+stc.pct+"%)")}}
   var d=daysSince(w.created)||0;
   if(d>=COOL_DAYS){s+=1;why.push("✓ хочешь её уже "+dd(d))}
   var answered=!!(c.w30||c.similar||c.fit||c.love);
@@ -1163,6 +1233,10 @@ function viewInsights(){
   if(forgotten.length)h+='<div class="hint" style="margin-top:10px">Подумай, почему: не с чем носить, неудобно, не тот цвет? Это подскажет, чего не покупать. Или загляни в «Разбор».</div>';
   h+='</div>';
   var act=S.wish.filter(function(w){return w.status!=="bought"&&w.status!=="rejected"}),go=act.filter(function(w){return evalWish(w).v==="go"});
+  var ms=myStyle(),pr0=wardrobeProfile(null);
+  h+='<div class="panel"><h3>Мой стиль</h3>'+(styleSet()?'<div class="tags" style="margin-bottom:8px">'+ms.love.map(function(t){return '<span style="background:var(--green-soft)">'+lbl(STAGS,t)+'</span>'}).join("")+ms.avoid.map(function(t){return '<span style="background:var(--pink)">без: '+lbl(STAGS,t).toLowerCase()+'</span>'}).join("")+'</div>'+(ms.loveColors.length?'<div class="hint" style="display:flex;gap:6px;align-items:center;margin-bottom:6px">Любимые цвета: '+ms.loveColors.map(function(c){return '<span style="width:14px;height:14px;border-radius:50%;display:inline-block;background:'+col(c)[2]+';outline:1px solid rgba(128,128,128,.3)"></span>'}).join("")+'</div>':'')+(ms.note?'<div class="hint" style="margin-bottom:8px">«'+esc(ms.note)+'»</div>':''):'<div class="hint" style="margin-bottom:8px">Опиши свой стиль — и при добавлении вещей и хотелок я подскажу, подходят ли они тебе.</div>')+
+    (pr0.topColors.length?'<div class="hint" style="margin-bottom:10px">По гардеробу: чаще всего '+pr0.topColors.map(function(c){return col(c)[1].toLowerCase()}).join(", ")+'.</div>':'')+
+    (readOnly?'':'<button class="btn ghost sm" data-act="style-open">'+(styleSet()?"Изменить":"Заполнить «Мой стиль»")+'</button>')+'</div>';
   h+='<div class="panel"><h3>Покупки</h3><div class="hint" style="margin-bottom:8px">Готово к покупке: <b style="color:var(--ink)">'+go.length+'</b> · на сумму '+(money(go.reduce(function(s,w){return s+(Number(w.price)||0)},0))||"0 €")+'</div>';
   go.forEach(function(w){h+=mini(w,money(w.price)||cat(w.cat)[1],"wish")});
   h+='<div class="hint" style="margin-top:10px">Куплено через список: '+(money(spent)||"0 €")+'</div></div></div>';
@@ -1200,7 +1274,7 @@ function drawModal(){
   o.classList.toggle("sheet",mode==="item");
   var m=o.querySelector(".modal"),st=m?m.scrollTop:0,ost=o.scrollTop;
   var pk=o.querySelector(".pick"),pst=pk?pk.scrollTop:0;
-  var body={item:itemModal,wish:wishForm,outfit:outfitForm,day:dayForm,dq:dqForm,tripday:tripDayForm,face:faceForm,fit:fitForm,post:postForm,tg:tgForm}[mode]();
+  var body={item:itemModal,wish:wishForm,outfit:outfitForm,day:dayForm,dq:dqForm,tripday:tripDayForm,face:faceForm,fit:fitForm,post:postForm,tg:tgForm,style:styleForm}[mode]();
   o.innerHTML='<div class="modal" role="dialog" aria-modal="true">'+body+'</div>';
   var m2=o.querySelector(".modal");if(m2)m2.scrollTop=st;o.scrollTop=ost;var pk2=o.querySelector(".pick");if(pk2)pk2.scrollTop=pst;
 }
@@ -1256,7 +1330,7 @@ function itemView(){
   if(meta)h+='<div class="hint" style="margin:-4px 0 12px;font-size:13.5px">'+esc(meta)+'</div>';
   h+='<div class="mstats" style="margin-bottom:12px"><div style="background:var(--sky)"><b>'+(d.wears||0)+'</b><span>'+plural(d.wears||0,"раз надела","раза надела","раз надела")+'</span></div><div style="background:var(--lav)"><b>'+(ds==null?"—":ds===0?"сегодня":ds+" дн.")+'</b><span>'+(ds==null?"ещё не носила":ds===0?"последний раз":"не носила")+'</span></div><div style="background:var(--pink)"><b>'+(c!=null?money(c.toFixed(0)):"—")+'</b><span>за выход</span></div></div>';
   var tags=(d.seasons||[]).map(function(s){return lbl(SEASONS,s)}).concat((d.occ||[]).map(function(o){return lbl(OCC,o)}));
-  if(col(d.color))tags.unshift(col(d.color)[1]);
+  if(col(d.color))tags.unshift(col(d.color)[1]);(d.tags||[]).forEach(function(t){tags.push(lbl(STAGS,t))});
   if(tags.length)h+='<div class="tags" style="margin-bottom:12px">'+tags.map(function(t){return '<span>'+t+'</span>'}).join("")+'</div>';
   if(d.decision)h+='<div style="margin-bottom:12px"><span class="pill '+DEC[d.decision][1]+'">Разбор: '+DEC[d.decision][0].toLowerCase()+'</span>'+(d.decision==="sell"&&d.salePrice?' <span class="hint">хочу '+money(d.salePrice)+'</span>':'')+'</div>';
   if(d.care)h+='<div class="hint" style="margin-bottom:8px">Уход: '+esc(d.care)+'</div>';
@@ -1274,6 +1348,8 @@ function itemForm(){
   h+='<div class="f"><span class="lb">Цвет</span><div class="sw">'+COLORS.map(function(c){return '<button type="button" aria-label="'+c[1]+'" title="'+c[1]+'" data-color="'+c[0]+'" class="'+(d.color===c[0]?"on":"")+'" style="background:'+c[2]+'"></button>'}).join("")+'</div></div>';
   h+='<div class="f"><span class="lb">Сезон</span>'+multi("seasons",SEASONS,d.seasons)+'</div>';
   h+='<div class="f"><span class="lb">Повод</span>'+multi("occ",OCC,d.occ)+'</div>';
+  h+='<div class="f"><span class="lb">Характер вещи</span>'+multi("tags",STAGS,d.tags)+'</div>';
+  if(d._new)h+=styleBox(d);
   h+='<details class="more"'+(d.brand||d.size||d.material||d.care||d.price?' open':'')+'><summary>Бренд, размер, материал, уход, цена</summary>'+
     '<div class="row3"><div class="f"><label class="lb">Бренд</label><input class="inp" data-f="brand" value="'+esc(d.brand)+'"></div><div class="f"><label class="lb">Размер</label><input class="inp" data-f="size" value="'+esc(d.size)+'"></div><div class="f"><label class="lb">Цена, €</label><input class="inp" type="number" min="0" data-f="price" value="'+esc(d.price)+'"></div></div>'+
     '<div class="row2"><div class="f"><label class="lb">Материал</label><input class="inp" data-f="material" value="'+esc(d.material)+'" placeholder="хлопок, шерсть…"></div><div class="f"><label class="lb">Уход</label><input class="inp" data-f="care" value="'+esc(d.care)+'" placeholder="30°, не сушить в машине…"></div></div>'+
@@ -1294,6 +1370,9 @@ function wishForm(){
   h+='<div class="row2"><div class="f"><label class="lb">Что это</label><input class="inp" data-f="name" value="'+esc(d.name)+'" placeholder="Кожаные лоферы"></div><div class="f"><span class="lb">Категория</span>'+catSelect(d.cat)+'</div></div>';
   var safe=/^https?:\/\//i.test(d.link||"");
   h+='<div class="row2"><div class="f"><label class="lb">Цена, €</label><input class="inp" type="number" min="0" data-f="price" value="'+esc(d.price)+'"></div><div class="f"><label class="lb">Ссылка'+(safe?' · <a href="'+esc(d.link)+'" target="_blank" rel="noopener" style="color:var(--accd)">открыть</a>':'')+'</label><input class="inp" data-f="link" value="'+esc(d.link)+'" placeholder="https://…"></div></div>';
+  h+='<div class="f"><span class="lb">Цвет</span><div class="sw">'+COLORS.map(function(c){return '<button type="button" aria-label="'+c[1]+'" title="'+c[1]+'" data-color="'+c[0]+'" class="'+(d.color===c[0]?"on":"")+'" style="background:'+c[2]+'"></button>'}).join("")+'</div></div>';
+  h+='<div class="f"><span class="lb">Характер вещи</span>'+multi("tags",STAGS,d.tags)+'</div>';
+  h+=styleBox(d);
   h+='<div class="lbl" style="margin-top:6px">Проверка перед покупкой</div>';
   h+='<div class="f"><span class="lb">1. С чем из гардероба ты это наденешь?</span><div class="hint" style="margin-bottom:6px">Отметь вещи, с которыми составишь образ. Хорошо, если их хотя бы 3.</div>'+pickGrid(c.pairs||[],d.cat,"pair")+'</div>';
   h+='<div class="f"><label class="lb">2. Куда конкретно ты это наденешь?</label><input class="inp" data-f="check.occ" value="'+esc(c.occ)+'" placeholder="в офис по пятницам, на прогулки"></div>';
@@ -1432,8 +1511,8 @@ function importJson(file){
 
 /* ---------- events ---------- */
 document.addEventListener("click",function(ev){
-  var t=ev.target.closest("[data-act],[data-cat],[data-wf],[data-wear],[data-wearoutfit],[data-item],[data-wish],[data-outfit],[data-trip],[data-opt],[data-multi],[data-color],[data-pair],[data-oitem],[data-dayitem],[data-titem],[data-dayoutfit],[data-day],[data-cal],[data-dq],[data-gone],[data-sugocc],[data-tw],[data-tstyle],[data-tlug],[data-topen],[data-tact],[data-tripday],[data-pack],[data-forget],[data-miss]");
-  if(!t){if(ev.target.classList&&ev.target.classList.contains("ov"))closeModal();return}
+  var t=ev.target.closest("[data-act],[data-cat],[data-wf],[data-wear],[data-wearoutfit],[data-item],[data-wish],[data-outfit],[data-trip],[data-opt],[data-multi],[data-color],[data-pair],[data-oitem],[data-dayitem],[data-titem],[data-dayoutfit],[data-day],[data-cal],[data-dq],[data-gone],[data-sugocc],[data-tw],[data-tstyle],[data-tlug],[data-topen],[data-tact],[data-tripday],[data-pack],[data-forget],[data-miss],[data-scol]");
+  if(!t){if(ev.target.classList&&ev.target.classList.contains("ov")){if(mode==="style")backFromStyle();else closeModal()}return}
   var ds=t.dataset;
   if(ds.cat){ui.cat=ds.cat;ui.todo=false;keepUi();render();return}
   if(ds.wf){ui.wf=ds.wf;keepUi();render();return}
@@ -1462,8 +1541,9 @@ document.addEventListener("click",function(ev){
   }
   if(draft){
     if(ds.opt){var v=ds.val;if(mode==="item"){draft[ds.opt]=draft[ds.opt]===v?"":v}else{if(ds.opt==="love")v=Number(v);draft.check[ds.opt]=draft.check[ds.opt]===v?"":v}drawModal();return}
-    if(ds.multi){toggle(draft[ds.multi]||(draft[ds.multi]=[]),ds.val);drawModal();return}
+    if(ds.multi){toggle(draft[ds.multi]||(draft[ds.multi]=[]),ds.val);if(mode==="style"&&(ds.multi==="love"||ds.multi==="avoid")){var oth=ds.multi==="love"?"avoid":"love",k3=draft[oth].indexOf(ds.val);if(k3>=0&&draft[ds.multi].indexOf(ds.val)>=0)draft[oth].splice(k3,1)}drawModal();return}
     if(ds.color){draft.color=draft.color===ds.color?"":ds.color;drawModal();return}
+    if(ds.scol){toggle(draft[ds.scol],ds.val);var other=ds.scol==="loveColors"?"avoidColors":"loveColors",k2=draft[other].indexOf(ds.val);if(k2>=0&&draft[ds.scol].indexOf(ds.val)>=0)draft[other].splice(k2,1);drawModal();return}
     if(ds.pair){toggle(draft.check.pairs||(draft.check.pairs=[]),ds.pair);drawModal();return}
     if(ds.oitem){toggle(draft.items,ds.oitem);drawModal();return}
     if(ds.dayitem){toggle(draft.sel,ds.dayitem);drawModal();return}
@@ -1479,6 +1559,7 @@ document.addEventListener("click",function(ev){
   if(ds.trip&&!draft){ui.tripId=ds.trip;keepUi();render();window.scrollTo(0,0);return}
   if(ds.day&&!draft&&!ds.act){if(readOnly)return;openModal("day",{day:ds.day,sel:(S.log[ds.day]||[]).slice(),orig:(S.log[ds.day]||[]).slice()});return}
   var a=ds.act;
+  if(a==="close"&&mode==="style"){backFromStyle();return}
   if(a==="close"){closeModal();if(dirty)flushSoon();return}
   if(a==="theme"){var cur=document.documentElement.getAttribute("data-theme");theme=cur==="dark"?"light":"dark";try{localStorage.setItem("wr-theme",theme)}catch(e){}applyTheme();render();return}
   if(a==="todo"){ui.todo=!ui.todo;keepUi();render();return}
@@ -1512,7 +1593,7 @@ document.addEventListener("click",function(ev){
   if(a==="reopen"){draft.status="active";draft.closed="";drawModal();return}
   if(a==="bought"){
     var w=cleanDraft();w.status="bought";w.closed=today();upsert(S.wish,w);
-    S.items.push({id:uid(),name:w.name,cat:w.cat,color:"",seasons:[],occ:[],photo:w.photo,cut:w.cut,ar:w.ar,bb:w.bb,wears:0,lastWorn:"",added:today(),notes:w.link?("Куплено: "+w.link):"",price:w.price,fromWish:w.id});
+    S.items.push({id:uid(),name:w.name,cat:w.cat,seasons:[],occ:[],color:w.color||"",tags:(w.tags||[]).slice(),photo:w.photo,cut:w.cut,ar:w.ar,bb:w.bb,wears:0,lastWorn:"",added:today(),notes:w.link?("Куплено: "+w.link):"",price:w.price,fromWish:w.id});
     closeModal();commit();toast("Добавила в гардероб");return}
   if(a==="save-outfit"){var o=cleanDraft();if(!o.name)o.name=autoName(o.items);upsert(S.outfits,o);closeModal();commit();return}
   if(a==="fig-body"||a==="fig-flat"){S.figMode=a==="fig-flat"?"flat":"body";commit();return}
@@ -1522,6 +1603,9 @@ document.addEventListener("click",function(ev){
   if(a==="face"){var pv=(SUG&&SUG.res&&SUG.res.items)||(S.outfits[0]&&S.outfits[0].items)||[];openModal("face",{face:S.face||"",adj:JSON.parse(JSON.stringify(S.faceAdj||{z:1,x:0,y:0})),preview:pv});return}
   if(a==="face-save"){S.face=draft.face;S.faceAdj=draft.adj;closeModal();commit();toast("Готово — теперь манекен с твоим лицом");return}
   if(a==="face-del"){if(!t.dataset.sure){t.dataset.sure="1";t.textContent="Точно убрать?";return}delete S.face;delete S.faceAdj;closeModal();commit();return}
+  if(a==="style-open"){var cur0=myStyle();prevModal=draft?{mode:mode,draft:draft}:null;openModal("style",JSON.parse(JSON.stringify(cur0)));return}
+  if(a==="style-cancel"||(a==="close"&&mode==="style")){backFromStyle();return}
+  if(a==="style-save"){S.style={love:draft.love,avoid:draft.avoid,loveColors:draft.loveColors,avoidColors:draft.avoidColors,note:draft.note};toast("Стиль сохранён");backFromStyle();commit();return}
   if(a==="post-outfit"){var po=cleanDraft();openPost(po.items,po.name||autoName(po.items));return}
   if(a==="post-today"){if(SUG&&SUG.res){var so=SUG.res.outfit?S.outfits.find(function(x){return x.id===SUG.res.outfit}):null;openPost(SUG.res.items,so?so.name:"Образ дня")}return}
   if(a==="post-item"){var pi=byId(draft.id);if(pi)openPost([pi.id],null,pi);return}
@@ -1573,6 +1657,8 @@ document.addEventListener("click",function(ev){
   if(a==="trip-done"){var td2=tripById(ui.tripId);if(!td2)return;var tdy=today(),n=0;Object.keys(td2.plan||{}).forEach(function(dk){if(dk<=tdy&&(td2.plan[dk]||[]).length){logWear(td2.plan[dk],dk);n++}});td2.status="done";commit();toast("Записала в календарь: "+dd(n));return}
   if(a==="trip-del"){if(!t.dataset.sure){t.dataset.sure="1";t.textContent="Точно удалить поездку?";return}S.trips=S.trips.filter(function(x){return x.id!==ui.tripId});ui.tripId=null;keepUi();commit();return}
 });
+var prevModal=null;
+function backFromStyle(){if(prevModal){mode=prevModal.mode;draft=prevModal.draft;prevModal=null;drawModal()}else closeModal()}
 function flushSoon(){clearTimeout(saveTimer);saveTimer=setTimeout(flush,LOCAL||PWA?300:900)}
 function autoName(ids){var its=ids.map(byId).filter(Boolean);return its.slice(0,2).map(iname).join(" + ")+(its.length>2?" …":"")||"Образ"}
 function wearOutfit(id){
@@ -1589,6 +1675,7 @@ document.addEventListener("input",function(ev){
   var t=ev.target;
   if(t.id==="q"){ui.q=t.value;keepUi();var pos=t.selectionStart;render();var q=$("#q");if(q){q.focus();try{q.setSelectionRange(pos,pos)}catch(e){}}return}
   if(TD&&t.dataset.tf==="name"){TD.name=t.value;return}
+  if(draft&&mode==="style"&&t.dataset.st){draft[t.dataset.st]=t.value;return}
   if(draft&&mode==="post"&&t.dataset.post){draft.caption=t.value;return}
   if(draft&&mode==="tg"&&t.dataset.tg){draft[t.dataset.tg]=t.value;draft.ok=false;return}
   if(draft&&mode==="fit"&&t.dataset.fit){draft.fit[t.dataset.fit]=Number(t.value);fitApply();return}
@@ -1643,7 +1730,7 @@ document.addEventListener("paste",function(ev){
   if(f){ev.preventDefault();setPhotoFrom(f);return}
   var txt=cd.getData("text");if(ev.target&&ev.target.id==="photourl"&&/^https?:\/\//i.test((txt||"").trim())){ev.preventDefault();ev.target.value=txt.trim();urlImport(txt)}
 });
-document.addEventListener("keydown",function(ev){if(ev.key==="Enter"&&ev.target&&ev.target.id==="photourl"){ev.preventDefault();urlImport(ev.target.value);return}if(ev.key==="Escape"&&draft){closeModal();if(dirty)flushSoon()}});
+document.addEventListener("keydown",function(ev){if(ev.key==="Enter"&&ev.target&&ev.target.id==="photourl"){ev.preventDefault();urlImport(ev.target.value);return}if(ev.key==="Escape"&&draft){if(mode==="style"){backFromStyle();return}closeModal();if(dirty)flushSoon()}});
 window.addEventListener("hashchange",function(){if(tab()!=="trips"){TD=null}render();window.scrollTo(0,0)});
 window.addEventListener("pagehide",function(){if(LOCAL&&dirty){try{fetch("/api/data",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(S),keepalive:true})}catch(e){}}});
 
